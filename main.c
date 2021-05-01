@@ -1,10 +1,16 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <byteswap.h>
+#include <string.h>
 #include "playstats.h"
+#include "titles.h"
 
 int main(int argc, char* argv[])
 {
+	uint64_t tid;
+	int time_mins, time_hrs, launches;
+	char titleString[160];
+
 	FILE* pstats = fopen(argv[1], "rb");
 	struct playstats* stats;
 
@@ -19,21 +25,31 @@ int main(int argc, char* argv[])
 
 	for (int i = 0; i < 256; i++)
 	{
-		if (stats->entry[i].tid == 0)
+		tid = bswap_64(stats->entry[i].tid);
+		time_hrs = bswap_32(stats->entry[i].playtime) / 60;
+		time_mins = bswap_32(stats->entry[i].playtime) % 60;
+		launches = bswap_16(stats->entry[i].launches);
+
+		strcpy(titleString, "No title string available.");
+
+		if (tid == 0)
 		{
 			break;
 		}
 
-		printf("--- Entry #%03d ---\n", i);
-		printf("Title: %016lx\n", bswap_64(stats->entry[i].tid));
-		
-		int time_hrs, time_mins;
-		
-		time_hrs = bswap_32(stats->entry[i].playtime) / 60;
-		time_mins = bswap_32(stats->entry[i].playtime) % 60;
+		for (int findTitleString = 0; findTitleString < numTitles; findTitleString++)
+		{
+			if (tid == titles[findTitleString].tid)
+			{
+				strcpy(titleString, titles[findTitleString].name);
+				break;
+			}
+		}
 
-		printf("Playtime: %dh %02dm\n", time_hrs, time_mins);
-		printf("Total launches: %d", bswap_16(stats->entry[i].launches));
+		printf("--- Entry #%03d ---\n", i);
+		printf("%s (%016lx)\n", titleString, tid);
+
+		printf("Played: %d times for a total of %dh %02dm\n", launches, time_hrs, time_mins);
 		printf("\n\n");
 	}
 
